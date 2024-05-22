@@ -1,4 +1,4 @@
-App displays total number of years, months, days passed from person's birthdate.
+App gives total number of years, months, days passed from person's birthdate.
 
 Future Implementations:
 1 . Recycler with Card
