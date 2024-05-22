@@ -39,6 +39,5 @@ class MainActivity : AppCompatActivity() {
 }
 
 data class Person(
-    var name:String,
-    var year:Int,var month:Int,var day:Int
+    var name:String, var year:Int,var month:Int,var day:Int
 )
