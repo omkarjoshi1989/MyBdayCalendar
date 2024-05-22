@@ -72,8 +72,10 @@ class PersonAdapter(private val persons: List<Person>) : RecyclerView.Adapter<Pe
         currentPerson.apply {
             pastDateTime = LocalDateTime.of(this.year, this.month,this.day, 0, 0, 0)
             val period = Period.between(pastDateTime.toLocalDate(), currentDateTime.toLocalDate())
-            holder.textViewName.text = currentPerson.name
-            holder.textViewDOB.text = "${period.years} years, ${period.months} months, ${period.days} days"
+            holder.textViewName.text = currentPerson.name.plus(" (").plus(this.day).plus("/").plus(this.month).plus("/").plus(this.year).plus(")")
+                ("${period.years} years, " +
+                        "${period.months} months, " +
+                        "${period.days} days").also { holder.textViewDOB.text = it }
         }
     }
 
