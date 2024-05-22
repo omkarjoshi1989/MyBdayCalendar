@@ -1,5 +1,6 @@
 package com.example.mybdaycalendar
 
+import android.annotation.SuppressLint
 import android.os.Build
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
@@ -16,11 +17,13 @@ import android.app.AlertDialog
 import android.content.Context
 import android.widget.Button
 import android.widget.EditText
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 
 class MainActivity : AppCompatActivity() {
     private lateinit var recyclerView: RecyclerView
     private lateinit var personAdapter: PersonAdapter
-    private val listOfPersons = mutableListOf<Person>()
+    private lateinit var listOfPersons : MutableList<Person>
     private lateinit var buttonAdd: Button
 
     @RequiresApi(Build.VERSION_CODES.O)
@@ -29,6 +32,7 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
     }
 
+    @SuppressLint("NotifyDataSetChanged")
     @RequiresApi(Build.VERSION_CODES.O)
     override fun onResume() {
         super.onResume()
@@ -37,25 +41,29 @@ class MainActivity : AppCompatActivity() {
         recyclerView = findViewById(R.id.recyclerView)
         recyclerView.layoutManager = LinearLayoutManager(this)
 
+        listOfPersons = SharedPreferencesHelper.loadPersonList(this)
+        personAdapter = PersonAdapter(listOfPersons)
+        recyclerView.adapter = personAdapter
+
         buttonAdd.setOnClickListener {
             val addPersonDialog = AddPersonDialog(this) { person ->
                 listOfPersons.add(Person(person.name, person.year, person.month, person.day))
-                personAdapter.notifyDataSetChanged()
+                SharedPreferencesHelper.savePersonList(this, listOfPersons)
+                personAdapter.run { notifyDataSetChanged() }
             }
             addPersonDialog.show()
-            personAdapter = PersonAdapter(listOfPersons)
-            recyclerView.adapter = personAdapter
         }
     }
 }
 
 data class Person(
-    var name:String, var year:Int,var month:Int,var day:Int
-)
+    var name:String="", var year:Int=1,var month:Int=1,var day:Int=1
+):java.io.Serializable
+
 @RequiresApi(Build.VERSION_CODES.O)
 class PersonAdapter(private val persons: List<Person>) : RecyclerView.Adapter<PersonAdapter.PersonViewHolder>() {
-    val currentDateTime = LocalDateTime.now()
-    var pastDateTime = LocalDateTime.of(1, 1,1, 0, 0, 0)
+    private val currentDateTime: LocalDateTime = LocalDateTime.now()
+    private var pastDateTime = LocalDateTime.of(1, 1,1, 0, 0, 0)
     inner class PersonViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         val textViewName: TextView = itemView.findViewById(R.id.textViewName)
         val textViewDOB: TextView = itemView.findViewById(R.id.textViewDOB)
@@ -72,10 +80,17 @@ class PersonAdapter(private val persons: List<Person>) : RecyclerView.Adapter<Pe
         currentPerson.apply {
             pastDateTime = LocalDateTime.of(this.year, this.month,this.day, 0, 0, 0)
             val period = Period.between(pastDateTime.toLocalDate(), currentDateTime.toLocalDate())
-            holder.textViewName.text = currentPerson.name.plus(" (").plus(this.day).plus("/").plus(this.month).plus("/").plus(this.year).plus(")")
-                ("${period.years} years, " +
-                        "${period.months} months, " +
-                        "${period.days} days").also { holder.textViewDOB.text = it }
+
+            val thisYearsBirthdateDateTime = LocalDateTime.of(2024, this.month, this.day, 0, 0, 0)
+
+            val status =  thisYearsBirthdateDateTime.isAfter(currentDateTime)
+            val statusString = if(status) "after today" else "before today"
+
+            holder.textViewName.text = currentPerson.name.plus(" (").plus(this.day).plus("/").plus(this.month).plus("/").plus(this.year).plus(") ").plus(statusString)
+
+            ("${period.years} years, " +
+                    "${period.months} months, " +
+                    "${period.days} days").also { holder.textViewDOB.text = it }
         }
     }
 
@@ -116,5 +131,28 @@ class AddPersonDialog(context: Context, private val listener: (Person) -> Unit) 
 
     fun show() {
         dialog.show()
+    }
+}
+
+object SharedPreferencesHelper {
+
+    private const val PREF_NAME = "MyPreferences"
+    private const val PERSON_LIST_KEY = "personList"
+
+    fun savePersonList(context: Context, personList: List<Person>) {
+        val jsonString = Gson().toJson(personList)
+        val prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
+        prefs.edit().putString(PERSON_LIST_KEY, jsonString).apply()
+    }
+
+    fun loadPersonList(context: Context): MutableList<Person> {
+        val prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
+        val jsonString = prefs.getString(PERSON_LIST_KEY, null)
+        return if (jsonString != null) {
+            val type = object : TypeToken<MutableList<Person>>() {}.type
+            Gson().fromJson(jsonString, type)
+        } else {
+            mutableListOf()
+        }
     }
 }
