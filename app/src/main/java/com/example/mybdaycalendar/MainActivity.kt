@@ -12,10 +12,16 @@ import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import java.time.LocalDateTime
 import java.time.Period
+import android.app.AlertDialog
+import android.content.Context
+import android.widget.Button
+import android.widget.EditText
 
 class MainActivity : AppCompatActivity() {
     private lateinit var recyclerView: RecyclerView
     private lateinit var personAdapter: PersonAdapter
+    private val listOfPersons = mutableListOf<Person>()
+    private lateinit var buttonAdd: Button
 
     @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -27,25 +33,19 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
 
-        val listOfPersons = listOf(
-            Person("Varada",2020,8,4),
-            Person("Rajashree",1991,11,18),
-            Person("Omkar",1989,3,24),
-        )
-        /*listOfPersons.forEach { person->
-            person.apply {
-                val pastDateTime = LocalDateTime.of(this.year, this.month,this.day, 0, 0, 0)
-                val currentDateTime = LocalDateTime.now()
-                val period = Period.between(pastDateTime.toLocalDate(), currentDateTime.toLocalDate())
-                textView.text = textView.text.toString().plus("\n\n${this.name} is this much old now:\n " +
-                        "${period.years} years, ${period.months} months, ${period.days} days")
-            }
-        }*/
-
+        buttonAdd = findViewById(R.id.buttonAdd)
         recyclerView = findViewById(R.id.recyclerView)
         recyclerView.layoutManager = LinearLayoutManager(this)
-        personAdapter = PersonAdapter(listOfPersons)
-        recyclerView.adapter = personAdapter
+
+        buttonAdd.setOnClickListener {
+            val addPersonDialog = AddPersonDialog(this) { person ->
+                listOfPersons.add(Person(person.name, person.year, person.month, person.day))
+                personAdapter.notifyDataSetChanged()
+            }
+            addPersonDialog.show()
+            personAdapter = PersonAdapter(listOfPersons)
+            recyclerView.adapter = personAdapter
+        }
     }
 }
 
@@ -80,4 +80,41 @@ class PersonAdapter(private val persons: List<Person>) : RecyclerView.Adapter<Pe
     }
 
     override fun getItemCount() = persons.size
+}
+
+class AddPersonDialog(context: Context, private val listener: (Person) -> Unit) {
+
+    private val dialog: AlertDialog = AlertDialog.Builder(context)
+        .setTitle("Add Person")
+        .setView(R.layout.dialog_add_person)
+        .setPositiveButton("Add") { _, _ -> }
+        .setNegativeButton("Cancel") { dialog, _ -> dialog.dismiss() }
+        .create()
+
+    init {
+        dialog.setOnShowListener {
+            val nameEditText = dialog.findViewById<EditText>(R.id.editTextName)
+            val yearEditText = dialog.findViewById<EditText>(R.id.editTextYear)
+            val monthEditText = dialog.findViewById<EditText>(R.id.editTextMonth)
+            val dayEditText = dialog.findViewById<EditText>(R.id.editTextDay)
+
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                val name = nameEditText?.text.toString()
+                val year = yearEditText?.text.toString().toIntOrNull()
+                val month = monthEditText?.text.toString().toIntOrNull()
+                val day = dayEditText?.text.toString().toIntOrNull()
+
+                if (name.isNotEmpty() && year != null && month != null && day != null) {
+                    listener.invoke(Person(name, year, month, day))
+                    dialog.dismiss()
+                } else {
+                    // Handle invalid input here (e.g., show an error message)
+                }
+            }
+        }
+    }
+
+    fun show() {
+        dialog.show()
+    }
 }
