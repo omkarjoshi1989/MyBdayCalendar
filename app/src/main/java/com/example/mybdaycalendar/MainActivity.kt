@@ -1,5 +1,6 @@
 package com.example.mybdaycalendar
 
+import android.annotation.SuppressLint
 import android.os.Build
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
@@ -30,8 +31,7 @@ class MainActivity : AppCompatActivity() {
                 val pastDateTime = LocalDateTime.of(this.year, this.month,this.day, 0, 0, 0)
                 val currentDateTime = LocalDateTime.now()
                 val period = Period.between(pastDateTime.toLocalDate(), currentDateTime.toLocalDate())
-                textView.setText(textView.text.toString()+
-                        "\n\n${this.name} is this much old now:\n " +
+                textView.text = textView.text.toString().plus("\n\n${this.name} is this much old now:\n " +
                         "${period.years} years, ${period.months} months, ${period.days} days")
             }
         }
