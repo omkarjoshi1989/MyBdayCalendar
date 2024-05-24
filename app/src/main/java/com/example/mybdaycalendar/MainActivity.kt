@@ -19,11 +19,12 @@ import android.widget.Button
 import android.widget.EditText
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
+import kotlin.math.abs
 
 class MainActivity : AppCompatActivity() {
     private lateinit var recyclerView: RecyclerView
     private lateinit var personAdapter: PersonAdapter
-    private lateinit var listOfPersons : MutableList<Person>
+    private lateinit var listOfPersons: MutableList<Person>
     private lateinit var buttonAdd: Button
 
     @RequiresApi(Build.VERSION_CODES.O)
@@ -42,6 +43,7 @@ class MainActivity : AppCompatActivity() {
         recyclerView.layoutManager = LinearLayoutManager(this)
 
         listOfPersons = SharedPreferencesHelper.loadPersonList(this)
+        addAllDefaultEntries()
         personAdapter = PersonAdapter(listOfPersons)
         recyclerView.adapter = personAdapter
 
@@ -54,19 +56,28 @@ class MainActivity : AppCompatActivity() {
             addPersonDialog.show()
         }
     }
+
+    private fun addAllDefaultEntries() {
+        listOfPersons.add(Person("Omkar",1989,3,24))
+        listOfPersons.add(Person("Rajashree",1991,11,18))
+        listOfPersons.add(Person("Varada",2020,8,4))
+        listOfPersons.add(Person("Shreeram",1957,6,28))
+    }
 }
 
 data class Person(
-    var name:String="", var year:Int=1,var month:Int=1,var day:Int=1
-):java.io.Serializable
+    var name: String = "", var year: Int = 1, var month: Int = 1, var day: Int = 1
+) : java.io.Serializable
 
 @RequiresApi(Build.VERSION_CODES.O)
 class PersonAdapter(private val persons: List<Person>) : RecyclerView.Adapter<PersonAdapter.PersonViewHolder>() {
     private val currentDateTime: LocalDateTime = LocalDateTime.now()
-    private var pastDateTime = LocalDateTime.of(1, 1,1, 0, 0, 0)
+    private var pastDateTime = LocalDateTime.of(1, 1, 1, 0, 0, 0)
+
     inner class PersonViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         val textViewName: TextView = itemView.findViewById(R.id.textViewName)
         val textViewDOB: TextView = itemView.findViewById(R.id.textViewDOB)
+        val textViewBirthdayStatus: TextView = itemView.findViewById(R.id.textViewBirthdayStatus)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): PersonViewHolder {
@@ -78,15 +89,28 @@ class PersonAdapter(private val persons: List<Person>) : RecyclerView.Adapter<Pe
     override fun onBindViewHolder(holder: PersonViewHolder, position: Int) {
         val currentPerson = persons[position]
         currentPerson.apply {
-            pastDateTime = LocalDateTime.of(this.year, this.month,this.day, 0, 0, 0)
+            pastDateTime = LocalDateTime.of(this.year, this.month, this.day, 0, 0, 0)
             val period = Period.between(pastDateTime.toLocalDate(), currentDateTime.toLocalDate())
 
             val thisYearsBirthdateDateTime = LocalDateTime.of(2024, this.month, this.day, 0, 0, 0)
+            val periodThisYears = Period.between(thisYearsBirthdateDateTime.toLocalDate(), currentDateTime.toLocalDate())
 
-            val status =  thisYearsBirthdateDateTime.isAfter(currentDateTime)
-            val statusString = if(status) "after today" else "before today"
+            val status = thisYearsBirthdateDateTime.isAfter(currentDateTime)
+            val statusString = if (status) "Birthday after " else "Birthday before "
 
-            holder.textViewName.text = currentPerson.name.plus(" (").plus(this.day).plus("/").plus(this.month).plus("/").plus(this.year).plus(") ").plus(statusString)
+            holder.textViewName.text = currentPerson.name
+                .plus(" (")
+                .plus(this.day)
+                .plus("/")
+                .plus(this.month)
+                .plus("/")
+                .plus(this.year)
+                .plus(") ")
+
+            holder.textViewBirthdayStatus.text =
+                statusString.plus(abs(periodThisYears.months))
+                    .plus(" months and ")
+                    .plus(abs(periodThisYears.days)).plus(" days from today!")
 
             ("${period.years} years, " +
                     "${period.months} months, " +
