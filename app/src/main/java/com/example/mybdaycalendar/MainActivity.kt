@@ -27,37 +27,43 @@ class MainActivity : AppCompatActivity() {
     private lateinit var listOfPersons: MutableList<Person>
     private lateinit var buttonAdd: Button
 
+    @SuppressLint("NotifyDataSetChanged")
     @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-    }
-
-    @SuppressLint("NotifyDataSetChanged")
-    @RequiresApi(Build.VERSION_CODES.O)
-    override fun onResume() {
-        super.onResume()
 
         buttonAdd = findViewById(R.id.buttonAdd)
         recyclerView = findViewById(R.id.recyclerView)
         recyclerView.layoutManager = LinearLayoutManager(this)
 
-        listOfPersons = SharedPreferencesHelper.loadPersonList(this)
         addAllDefaultEntries()
-        personAdapter = PersonAdapter(listOfPersons)
-        recyclerView.adapter = personAdapter
+        personAdapter = PersonAdapter(listOfPersons.toMutableList()) { position ->
+            AlertDialog.Builder(this)
+                .setTitle("Delete Person")
+                .setMessage("Are you sure you want to delete this person?")
+                .setPositiveButton("Yes") { _, _ ->
+                    personAdapter.removeItem(position)
+                }
+                .setNegativeButton("No", null)
+                .show()
+        }
 
         buttonAdd.setOnClickListener {
             val addPersonDialog = AddPersonDialog(this) { person ->
-                listOfPersons.add(Person(person.name, person.year, person.month, person.day))
-                SharedPreferencesHelper.savePersonList(this, listOfPersons)
-                personAdapter.run { notifyDataSetChanged() }
+                val newPerson = Person(person.name, person.year, person.month, person.day)
+                // Update the adapter's list directly
+                personAdapter.addPerson(newPerson)
             }
             addPersonDialog.show()
         }
+
+        recyclerView.adapter = personAdapter
+
     }
 
     private fun addAllDefaultEntries() {
+        listOfPersons = mutableListOf()
         listOfPersons.add(Person("Omkar",1989,3,24))
         listOfPersons.add(Person("Rajashree",1991,11,18))
         listOfPersons.add(Person("Varada",2020,8,4))
@@ -70,14 +76,24 @@ data class Person(
 ) : java.io.Serializable
 
 @RequiresApi(Build.VERSION_CODES.O)
-class PersonAdapter(private val persons: List<Person>) : RecyclerView.Adapter<PersonAdapter.PersonViewHolder>() {
+class PersonAdapter(
+    private val persons: MutableList<Person>,
+    private val onItemLongPress: (Int) -> Unit // Callback for long-press action
+) : RecyclerView.Adapter<PersonAdapter.PersonViewHolder>() {
+
     private val currentDateTime: LocalDateTime = LocalDateTime.now()
-    private var pastDateTime = LocalDateTime.of(1, 1, 1, 0, 0, 0)
 
     inner class PersonViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         val textViewName: TextView = itemView.findViewById(R.id.textViewName)
         val textViewDOB: TextView = itemView.findViewById(R.id.textViewDOB)
         val textViewBirthdayStatus: TextView = itemView.findViewById(R.id.textViewBirthdayStatus)
+
+        init {
+            itemView.setOnLongClickListener {
+                onItemLongPress(adapterPosition) // Notify parent about the long-press
+                true
+            }
+        }
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): PersonViewHolder {
@@ -89,14 +105,14 @@ class PersonAdapter(private val persons: List<Person>) : RecyclerView.Adapter<Pe
     override fun onBindViewHolder(holder: PersonViewHolder, position: Int) {
         val currentPerson = persons[position]
         currentPerson.apply {
-            pastDateTime = LocalDateTime.of(this.year, this.month, this.day, 0, 0, 0)
+            val pastDateTime = LocalDateTime.of(this.year, this.month, this.day, 0, 0, 0)
             val period = Period.between(pastDateTime.toLocalDate(), currentDateTime.toLocalDate())
 
             val thisYearsBirthdateDateTime = LocalDateTime.of(2024, this.month, this.day, 0, 0, 0)
             val periodThisYears = Period.between(thisYearsBirthdateDateTime.toLocalDate(), currentDateTime.toLocalDate())
 
             val status = thisYearsBirthdateDateTime.isAfter(currentDateTime)
-            val statusString = if (status) "Birthday after " else "Birthday before "
+            val statusString = if (status) "Day after " else "Day before "
 
             holder.textViewName.text = currentPerson.name
                 .plus(" (")
@@ -119,6 +135,15 @@ class PersonAdapter(private val persons: List<Person>) : RecyclerView.Adapter<Pe
     }
 
     override fun getItemCount() = persons.size
+
+    fun removeItem(position: Int) {
+        persons.removeAt(position)
+        notifyItemRemoved(position)
+    }
+    fun addPerson(person: Person) {
+        persons.add(person) // Add to the adapter's list
+        notifyItemInserted(persons.size - 1) // Notify the adapter of the new item
+    }
 }
 
 class AddPersonDialog(context: Context, private val listener: (Person) -> Unit) {
