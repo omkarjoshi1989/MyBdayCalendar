@@ -4,4 +4,4 @@ App gives total number of years, months, days passed from person's birthdate.
 Future Implementations:
 * delete entry from list
 * Recycler with Card UI layout
-* store all entries in file / hosting website storage
+* store/fetch all entries in file / hosting website storage
